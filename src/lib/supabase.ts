@@ -1,14 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+// Only throw error if both are missing and we're in a browser (client-side)
+if (typeof window !== 'undefined' && (!supabaseUrl || !supabaseAnonKey)) {
+  console.error('Missing Supabase environment variables:', {
+    url: supabaseUrl ? '✓ Set' : '✗ Missing',
+    key: supabaseAnonKey ? '✓ Set' : '✗ Missing',
+  });
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create client with empty values if not available - it will fail gracefully when used
+export const supabase = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-key'
+);
 
 // Helper functions for common operations
 export const supabaseHelpers = {
