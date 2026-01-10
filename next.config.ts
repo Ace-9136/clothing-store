@@ -19,6 +19,11 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Vercel deployment optimizations
+  productionBrowserSourceMaps: false,
+  experimental: {
+    optimizePackageImports: ["zustand", "@supabase/supabase-js"],
+  },
 };
 
 export default nextConfig;

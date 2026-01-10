@@ -19,8 +19,15 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted) return;
+
     const fetchOrders = async () => {
       try {
         const user = await supabaseHelpers.getCurrentUser();
@@ -40,7 +47,7 @@ export default function OrdersPage() {
     };
 
     fetchOrders();
-  }, [router]);
+  }, [isMounted, router]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

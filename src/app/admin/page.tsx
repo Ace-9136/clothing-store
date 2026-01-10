@@ -43,6 +43,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [newProduct, setNewProduct] = useState({
     name: '',
     description: '',
@@ -55,6 +56,12 @@ export default function AdminPage() {
   });
 
   useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted) return;
+
     const checkAdminAccess = async () => {
       try {
         const user = await supabaseHelpers.getCurrentUser();
@@ -89,7 +96,7 @@ export default function AdminPage() {
     };
 
     checkAdminAccess();
-  }, [router]);
+  }, [isMounted, router]);
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
