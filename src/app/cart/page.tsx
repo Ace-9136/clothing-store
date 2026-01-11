@@ -13,6 +13,7 @@ export default function CartPage() {
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const clearCart = useCartStore((state) => state.clearCart);
   
+  const [mounted, setMounted] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const [loading, setLoading] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
@@ -25,6 +26,11 @@ export default function CartPage() {
     city: '',
     zipCode: '',
   });
+
+  useEffect(() => {
+    // Mark as mounted to trigger hydration check
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -178,6 +184,15 @@ export default function CartPage() {
       setLoading(false);
     }
   };
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white">
+        <h1 className="text-3xl font-extrabold text-gray-900 mb-4">Shopping Cart</h1>
+        <p className="text-gray-500">Loading...</p>
+      </div>
+    );
+  }
 
   if (cartItems.length === 0 && !showCheckout && !orderSuccess) {
     return (

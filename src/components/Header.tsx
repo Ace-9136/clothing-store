@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabaseHelpers } from '@/lib/supabase';
+import { supabaseHelpers, supabase } from '@/lib/supabase';
 
 export default function Header() {
   const router = useRouter();
@@ -24,7 +24,21 @@ export default function Header() {
         console.error('Error checking user:', error);
       }
     };
-    checkUser();
+    
+    // Wait for session to be initialized, then check user
+    const initializeAuth = async () => {
+      // Wait for Supabase to restore session from storage
+      const { data } = await supabase.auth.onAuthStateChange((event, session) => {
+        console.log('Auth state change detected:', event);
+      });
+
+      // Give it a moment to initialize
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      checkUser();
+    };
+
+    initializeAuth();
   }, []);
 
   const handleLogout = async () => {

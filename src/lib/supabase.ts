@@ -12,10 +12,18 @@ if (typeof window !== 'undefined' && (!supabaseUrl || !supabaseAnonKey)) {
   });
 }
 
-// Create client with empty values if not available - it will fail gracefully when used
+// Create client with proper session persistence
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key'
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    },
+  }
 );
 
 // Helper functions for common operations
@@ -60,10 +68,17 @@ export const supabaseHelpers = {
   },
 
   async getCurrentUser() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    return user;
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      return user;
+    } catch (error) {
+      console.error('Error getting current user:', error);
+      // Try to get session as fallback
+      const { data } = await supabase.auth.getSession();
+      return data?.session?.user || null;
+    }
   },
 
   async getUserProfile(userId: string) {

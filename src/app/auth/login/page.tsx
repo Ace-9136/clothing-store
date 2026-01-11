@@ -21,8 +21,11 @@ export default function LoginPage() {
       const { error: signInError } = await supabaseHelpers.signIn(email, password);
       if (signInError) throw signInError;
       
-      // Redirect to home or intended page
-      router.push('/shop');
+      // Give Supabase time to fully establish the session
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Force a hard redirect to ensure fresh page load
+      window.location.href = '/shop';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
