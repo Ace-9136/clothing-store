@@ -54,6 +54,17 @@ export default function AdminPage() {
     colors: '',
     stock: 0,
   });
+  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    description: '',
+    price: 0,
+    image_url: '',
+    category: '',
+    sizes: '',
+    colors: '',
+    stock: 0,
+  });
 
   useEffect(() => {
     setIsMounted(true);
@@ -162,6 +173,52 @@ export default function AdminPage() {
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to delete product');
       }
+    }
+  };
+
+  const handleOpenEditModal = (product: Product) => {
+    setEditingProduct(product);
+    setEditFormData({
+      name: product.name,
+      description: '',
+      price: product.price,
+      image_url: '',
+      category: '',
+      sizes: '',
+      colors: '',
+      stock: product.stock,
+    });
+  };
+
+  const handleUpdateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+
+    try {
+      const sizes = editFormData.sizes.split(',').map((s) => s.trim()).filter(Boolean);
+      const colors = editFormData.colors.split(',').map((c) => c.trim()).filter(Boolean);
+
+      const { error } = await supabaseHelpers.updateProduct(editingProduct.id, {
+        name: editFormData.name,
+        description: editFormData.description || undefined,
+        price: parseFloat(editFormData.price.toString()),
+        image_url: editFormData.image_url || undefined,
+        category: editFormData.category || undefined,
+        sizes: sizes.length > 0 ? sizes : undefined,
+        colors: colors.length > 0 ? colors : undefined,
+        stock: parseInt(editFormData.stock.toString()),
+      });
+
+      if (error) throw error;
+
+      // Refresh products
+      const { data: productsData } = await supabaseHelpers.getAllProducts();
+      setProducts(productsData || []);
+
+      // Close modal
+      setEditingProduct(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update product');
     }
   };
 
@@ -407,7 +464,7 @@ export default function AdminPage() {
                     placeholder="Enter product description"
                     value={newProduct.description}
                     onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-[100px]"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-25"
                   />
                 </div>
 
@@ -480,6 +537,12 @@ export default function AdminPage() {
                       </td>
                       <td className="px-6 py-4 text-sm flex gap-2">
                         <button
+                          onClick={() => handleOpenEditModal(product)}
+                          className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
                           onClick={() => handleDeleteProduct(product.id)}
                           className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition-colors"
                         >
@@ -490,6 +553,125 @@ export default function AdminPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Product Modal */}
+        {editingProduct && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Edit Product</h2>
+              
+              <form onSubmit={handleUpdateProduct} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Product Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
+                  <input
+                    type="text"
+                    value={editFormData.name}
+                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <input
+                    type="text"
+                    value={editFormData.category}
+                    onChange={(e) => setEditFormData({ ...editFormData, category: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Price */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Price ($) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editFormData.price}
+                    onChange={(e) => setEditFormData({ ...editFormData, price: parseFloat(e.target.value) || 0 })}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Stock */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Stock Quantity *</label>
+                  <input
+                    type="number"
+                    value={editFormData.stock}
+                    onChange={(e) => setEditFormData({ ...editFormData, stock: parseInt(e.target.value) || 0 })}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Image URL */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+                  <input
+                    type="text"
+                    value={editFormData.image_url}
+                    onChange={(e) => setEditFormData({ ...editFormData, image_url: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    value={editFormData.description}
+                    onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-25"
+                  />
+                </div>
+
+                {/* Sizes */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sizes (comma separated)</label>
+                  <input
+                    type="text"
+                    value={editFormData.sizes}
+                    onChange={(e) => setEditFormData({ ...editFormData, sizes: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Colors */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Colors (comma separated)</label>
+                  <input
+                    type="text"
+                    value={editFormData.colors}
+                    onChange={(e) => setEditFormData({ ...editFormData, colors: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                {/* Buttons */}
+                <div className="md:col-span-2 flex gap-3">
+                  <button
+                    type="submit"
+                    className="flex-1 bg-indigo-600 text-white py-3 px-4 rounded-md font-medium hover:bg-indigo-700 transition-colors"
+                  >
+                    Update Product
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingProduct(null)}
+                    className="flex-1 bg-gray-300 text-gray-900 py-3 px-4 rounded-md font-medium hover:bg-gray-400 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

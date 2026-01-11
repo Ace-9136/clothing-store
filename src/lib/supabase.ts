@@ -42,6 +42,19 @@ export const supabaseHelpers = {
     return supabase.auth.signInWithPassword({ email, password });
   },
 
+  async signInWithGoogle() {
+    return supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
+    });
+  },
+
   async signOut() {
     return supabase.auth.signOut();
   },
@@ -109,7 +122,7 @@ export const supabaseHelpers = {
     status: string;
     payment_method: string;
   }) {
-    return supabase.from('orders').insert([orderData]);
+    return supabase.from('orders').insert([orderData]).select();
   },
 
   async getOrdersByUserId(userId: string) {
@@ -137,7 +150,7 @@ export const supabaseHelpers = {
     color?: string;
     price: number;
   }>) {
-    return supabase.from('order_items').insert(items);
+    return supabase.from('order_items').insert(items).select();
   },
 
   async getOrderItems(orderId: string) {

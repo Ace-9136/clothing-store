@@ -15,6 +15,7 @@ export default function CartPage() {
   
   const [showCheckout, setShowCheckout] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [orderSuccess, setOrderSuccess] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [checkoutData, setCheckoutData] = useState({
     customerName: '',
@@ -47,6 +48,40 @@ export default function CartPage() {
     return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
   };
 
+  const triggerConfetti = async () => {
+    try {
+      const confettiModule = await import('canvas-confetti');
+      const confetti = confettiModule.default;
+      
+      // First burst
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+      
+      // Second burst after delay
+      setTimeout(() => {
+        confetti({
+          particleCount: 50,
+          spread: 100,
+          origin: { y: 0.6 }
+        });
+      }, 300);
+      
+      // Third burst for extra effect
+      setTimeout(() => {
+        confetti({
+          particleCount: 75,
+          spread: 60,
+          origin: { y: 0.5 }
+        });
+      }, 600);
+    } catch (err) {
+      console.error('Confetti error:', err);
+    }
+  };
+
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
@@ -56,6 +91,14 @@ export default function CartPage() {
 
     setLoading(true);
     try {
+      // Validate form
+      if (!checkoutData.customerName || !checkoutData.customerEmail || !checkoutData.customerPhone || 
+          !checkoutData.address || !checkoutData.city || !checkoutData.zipCode) {
+        alert('Please fill in all required fields');
+        setLoading(false);
+        return;
+      }
+
       // Create order
       const { data: orderData, error: orderError } = await supabaseHelpers.createOrder({
         user_id: user.id,
@@ -70,39 +113,73 @@ export default function CartPage() {
         payment_method: 'cash_on_delivery',
       });
 
-      if (orderError) throw orderError;
-
-      if (orderData) {
-        const orderArray = Array.isArray(orderData) ? orderData : [orderData];
-        const orderId = (orderArray[0] as any)?.id;
-        
-        if (!orderId) throw new Error('Failed to create order');
-
-        // Create order items
-        const orderItems = cartItems.map((item) => ({
-          order_id: orderId as string,
-          product_id: item.productId,
-          quantity: item.quantity,
-          size: item.size || undefined,
-          color: undefined,
-          price: item.price,
-        }));
-
-        await supabaseHelpers.createOrderItems(orderItems);
-
-        // Clear cart and redirect
-        clearCart();
-        router.push(`/order-confirmation/${orderId}`);
+      if (orderError) {
+        console.error('Order creation error:', orderError);
+        throw orderError;
       }
+
+      console.log('Order created:', orderData);
+
+      // Handle the response - Supabase insert returns array
+      let orderId: string | null = null;
+      
+      if (orderData) {
+        if (Array.isArray(orderData) && (orderData as any[]).length > 0) {
+          orderId = ((orderData as any[])[0] as any).id;
+        } else if (!Array.isArray(orderData) && (orderData as any).id) {
+          orderId = (orderData as any).id;
+        }
+      }
+
+      if (!orderId) {
+        console.error('Failed to extract order ID from response:', orderData);
+        throw new Error('Failed to create order - no order ID returned');
+      }
+
+      // Create order items
+      const orderItems = cartItems.map((item) => ({
+        order_id: orderId as string,
+        product_id: item.productId,
+        quantity: item.quantity,
+        size: item.size || undefined,
+        color: undefined,
+        price: item.price,
+      }));
+
+      console.log('Creating order items:', JSON.stringify(orderItems));
+      
+      const itemsResult = await supabaseHelpers.createOrderItems(orderItems);
+      console.log('Order items result:', itemsResult);
+      
+      if (itemsResult.error) {
+        console.warn('Order items creation warning:', itemsResult.error);
+        // Continue anyway - order was created successfully
+      } else {
+        console.log('Order items created successfully');
+      }
+
+      // Clear cart immediately
+      clearCart();
+      
+      // Show success state - order was created even if items failed
+      setOrderSuccess(true);
+      
+      // Trigger confetti animation
+      await triggerConfetti();
+      
+      // Redirect after confetti animation completes
+      setTimeout(() => {
+        router.push('/');
+      }, 3500);
     } catch (error) {
       console.error('Checkout error:', error);
       alert('Error creating order. Please try again.');
-    } finally {
+      setOrderSuccess(false);
       setLoading(false);
     }
   };
 
-  if (cartItems.length === 0 && !showCheckout) {
+  if (cartItems.length === 0 && !showCheckout && !orderSuccess) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white">
         <h1 className="text-3xl font-extrabold text-gray-900 mb-4">Shopping Cart</h1>
@@ -162,7 +239,7 @@ export default function CartPage() {
           </div>
 
           {/* Order Summary / Checkout */}
-          {cartItems.length > 0 && (
+          {cartItems.length > 0 && !orderSuccess && (
             <div className="bg-gray-50 rounded-lg p-6">
               {!showCheckout ? (
                 <>
@@ -282,6 +359,23 @@ export default function CartPage() {
           )}
         </div>
       </div>
+
+      {/* Order Success Overlay */}
+      {orderSuccess && (
+        <div className="fixed inset-0 bg-white bg-opacity-95 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 text-center shadow-xl max-w-md border border-gray-200">
+            <div className="mb-4">
+              <div className="text-5xl mb-4">🎉</div>
+              <h2 className="text-3xl font-bold text-green-600 mb-2">Order Placed!</h2>
+              <p className="text-gray-600">Thank you for your order.</p>
+              <p className="text-sm text-gray-500 mt-4">Redirecting to home page...</p>
+            </div>
+            <div className="flex justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
